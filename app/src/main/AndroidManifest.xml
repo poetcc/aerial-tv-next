@@ -14,9 +14,6 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
         tools:ignore="CoarseFineLocation" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-    <!-- Installing a new version from Control Center (update/Updates.kt). On TVs without the
-         "install unknown apps" page (TCL) tools/install.sh allows it over ADB. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Both granted only over ADB by tools/install.sh, never requested in the app:
          - WRITE_SECURE_SETTINGS lets Aerial turn Home Guard back on after firmwares that
@@ -29,31 +26,11 @@
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Which app is in front, where a launcher hides from accessibility (Xiaomi PatchWall on
-         Android 6, issue #81); granted over ADB. -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-    <!-- RevivalSync: the sync adapter that restarts Aerial after a force-stop. -->
-    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS" />
-    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS" />
-    <!-- Up to Android 5.1 RevivalSync's account lookup and the account it adds need these; without
-         them the sync revival was never set up (LeTV X3-55 Pro, Android 5.0.1, issue #328).
-         Granted at install there. -->
-    <uses-permission android:name="android.permission.GET_ACCOUNTS" android:maxSdkVersion="22" />
-    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS" android:maxSdkVersion="22" />
+    <uses-permission android:name="app.orchard.tv.permission.PLAYBACK_BRIDGE" />
     <!-- A home screen lists every launchable app by definition. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
-    <!-- Android 11 package visibility for the Skyworth/Coocaa source API: the TV's SDK provider
-         lists the ports and its TV activity opens one (SystemProbe.skyworthSources). -->
-    <queries>
-        <package android:name="com.skyworth.tv" />
-        <provider android:authorities="com.skyworth.tv.sdk.provider" />
-    </queries>
-
-    <!-- largeHeap: up to Android 7 bitmaps live on the Java heap, and LeTV X3-55 Pro (Android 5.0.1)
-         ran out of it drawing Home (issue #328). -->
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
@@ -62,20 +39,20 @@
         android:allowBackup="false"
         android:supportsRtl="true"
         android:hardwareAccelerated="true"
-        android:largeHeap="true"
         android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- The HOME intent filter is added by the "standard" flavor (src/standard).
-             Not in recent apps: where the firmware keeps Home for itself, Aerial's task is a standard
-             one and showed as a card first in the list that switched to nothing (MiTV-MFTR0, #324). -->
+        <receiver android:name=".media.SonyPlaybackReceiver" android:exported="true" android:permission="app.orchard.tv.permission.PLAYBACK_BRIDGE">
+            <intent-filter><action android:name="app.orchard.tv.SONY_PLAYBACK" /></intent-filter>
+        </receiver>
+
+        <!-- The HOME intent filter is added by the "standard" flavor (src/standard). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:directBootAware="true"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
-            android:clearTaskOnLaunch="true"
             android:excludeFromRecents="true"
+            android:clearTaskOnLaunch="true"
             android:resumeWhilePausing="true"
             android:screenOrientation="landscape"
             android:windowSoftInputMode="adjustNothing"
@@ -84,32 +61,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
-            <!-- Most Chinese TV launchers (Xiaomi PatchWall, Raybird, Huanshi) list only apps with
-                 this category: installed from a USB stick, Aerial had no icon to open it by
-                 (issues #207, #213). -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.files"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/update_files" />
-        </provider>
 
         <receiver
             android:name=".guard.BootReceiver"
-            android:directBootAware="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 
@@ -135,7 +95,6 @@
 
         <service
             android:name=".guard.RevivalListener"
-            android:directBootAware="true"
             android:label="@string/guard_name"
             android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -145,30 +104,7 @@
         </service>
 
         <service
-            android:name=".guard.RevivalSyncService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.content.SyncAdapter" />
-            </intent-filter>
-            <meta-data
-                android:name="android.content.SyncAdapter"
-                android:resource="@xml/revival_sync" />
-        </service>
-
-        <service
-            android:name=".guard.RevivalAccountService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.accounts.AccountAuthenticator" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accounts.AccountAuthenticator"
-                android:resource="@xml/revival_account" />
-        </service>
-
-        <service
             android:name=".guard.HomeGuardService"
-            android:directBootAware="true"
             android:label="@string/guard_name"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">

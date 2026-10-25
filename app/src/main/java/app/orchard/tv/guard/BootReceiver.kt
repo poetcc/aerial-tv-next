@@ -3,6 +3,7 @@ package app.orchard.tv.guard
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import app.orchard.tv.MainActivity
 
 /**
@@ -12,19 +13,21 @@ import app.orchard.tv.MainActivity
  */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Exported for the boot broadcasts only; anything else could use it to pull Aerial forward.
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
-        GuardSetup.ensureEnabled(context)
-        if (intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) return
-        // Also when Aerial is the default Home: some firmwares start their own launcher at boot
-        // regardless (Skyworth/Coolita 8R145, issue #43).
-        // A guard that is already running looks at what is in front before taking Home: by the time
-        // this arrives, an HDMI-CEC source may already have switched the TV to its input. It still
-        // has to look: on Xiaomi MiTV-MTEQ0 (Android 10) it is bound ~20 s before BOOT_COMPLETED,
-        // never sees PatchWall's windows, and the take-over at bind time did not stick (issue #154).
-        if (HomeGuardService.onBootCompleted()) return
+        if (intent.action !in setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_LOCKED_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)) return
+        GuardSetup.recover(context)
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) return
+        val home = context.packageManager.resolveActivity(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+            PackageManager.MATCH_DEFAULT_ONLY,
+        )?.activityInfo?.packageName
+        if (home == context.packageName) return
         runCatching {
-            context.startActivity(MainActivity.bringBackIntent(context))
+            context.startActivity(
+                Intent(context, MainActivity::class.java)
+                    .setAction(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
         }
     }
 }

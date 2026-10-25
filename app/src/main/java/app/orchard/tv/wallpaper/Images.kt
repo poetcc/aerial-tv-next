@@ -40,16 +40,9 @@ object Images {
     }
 
     /**
-     * Shading baked into a home backdrop so the clock and the top row read over any picture, the way
+     * Shading baked into a home backdrop so the clock and the grid read over any picture, the way
      * tvOS darkens the area under its app rows. Baked once, so the TV draws a single full-screen layer.
-     * Light since 1.28: the grid has its own darkened frosted background and the top row its plate,
-     * and the old shade (88% black at the bottom, 42% more on the left) made photos look dim (#157).
      */
-    /** The home shading, top to bottom: black at these alphas at [SHADE_AT]; and [SHADE_LEFT] fading out by mid-screen. */
-    val SHADE = floatArrayOf(0.12f, 0.04f, 0.22f, 0.5f)
-    val SHADE_AT = floatArrayOf(0f, 0.3f, 0.66f, 1f)
-    const val SHADE_LEFT = 0.2f
-
     fun shadeForHome(b: Bitmap): Bitmap {
         val out = if (b.isMutable) b else b.copy(Bitmap.Config.ARGB_8888, true)
         val c = Canvas(out)
@@ -58,29 +51,13 @@ object Images {
         c.drawRect(0f, 0f, w, h, Paint().apply {
             shader = LinearGradient(
                 0f, 0f, 0f, h,
-                SHADE.map(::black).toIntArray(),
-                SHADE_AT, Shader.TileMode.CLAMP,
+                intArrayOf(black(0.18f), black(0.12f), black(0.55f), black(0.88f)),
+                floatArrayOf(0f, 0.3f, 0.66f, 1f), Shader.TileMode.CLAMP,
             )
         })
         c.drawRect(0f, 0f, w, h, Paint().apply {
-            shader = LinearGradient(0f, 0f, w * 0.5f, 0f, black(SHADE_LEFT), 0, Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, 0f, w * 0.6f, 0f, black(0.42f), 0, Shader.TileMode.CLAMP)
         })
-        return out
-    }
-
-    /**
-     * A home backdrop frosted: shrunk and blurred three times over. Small
-     * on purpose; it is only ever seen blurred, and it is drawn stretched in a single pass.
-     */
-    fun frost(b: Bitmap): Bitmap {
-        val w = 320
-        val h = 180
-        val small = Bitmap.createScaledBitmap(b, w, h, true)
-        val px = IntArray(w * h)
-        small.getPixels(px, 0, w, 0, 0, w, h)
-        repeat(3) { boxBlur(px, w, h, 7) }
-        val out = small.copy(Bitmap.Config.ARGB_8888, true).also { if (it !== small) small.recycle() }
-        out.setPixels(px, 0, w, 0, 0, w, h)
         return out
     }
 

@@ -1,13 +1,23 @@
 package app.orchard.tv.guard
 
+import android.service.notification.NotificationListenerService
+import android.util.Log
+import android.app.Notification
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.service.notification.NotificationListenerService
-import android.util.Log
+import android.provider.Settings
+import androidx.core.content.ContextCompat
+import android.media.session.MediaSession
+import android.service.notification.StatusBarNotification
+import java.lang.ref.WeakReference
+import app.orchard.tv.media.RecentPlayback
 
 /**
  * Brings Home Guard back after the firmware kills Aerial.
@@ -16,46 +26,89 @@ import android.util.Log
  * force-stopped app's accessibility services from the enabled list for good. Notification
  * listeners are treated differently: the system keeps the approval and binds the listener again
  * shortly after its process dies. That rebind is the one thing that reliably restarts Aerial
- * after a standby, so it is used for exactly this. No notification is read or touched.
+ * after a standby. No notification bodies are read. When the user enables Recent Playback,
+ * this authorization also permits observing standard media sessions and their notification entry.
  */
 class RevivalListener : NotificationListenerService() {
-    private var unlocked: BroadcastReceiver? = null
-
-    override fun onListenerConnected() {
-        Log.i("AerialGuard", "revived by the notification listener binding")
-        GuardSetup.ensureEnabled(this)
-        // Bound before the user is unlocked (Direct Boot): Aerial's preferences are in credential
-        // storage, and reading them crashed Aerial at boot, which left the stock launcher in front
-        // (TCL 65S515D, Android 9, issue #82). Wait for the unlock.
-        if (!GuardSetup.isUserUnlocked(this)) {
-            if (unlocked != null) return
-            val receiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context, intent: Intent) {
-                    if (unlocked !== this) return
-                    unregisterReceiver(this)
-                    unlocked = null
-                    revive()
-                }
+    private val handler = Handler(Looper.getMainLooper())
+    private var watching = false
+    private val wakeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_SCREEN_OFF) {
+                GuardSetup.recordScreenOff(this@RevivalListener)
+                return
             }
-            unlocked = receiver
-            registerReceiver(receiver, IntentFilter(Intent.ACTION_USER_UNLOCKED))
-            // Unlocked in between: the broadcast is already gone.
-            if (GuardSetup.isUserUnlocked(this)) receiver.onReceive(this, Intent(Intent.ACTION_USER_UNLOCKED))
-            return
+            GuardSetup.recover(this@RevivalListener)
+            HomeGuardService.checkAfterWake()
         }
-        revive()
+    }
+    private val adbObserver = object : ContentObserver(handler) {
+        override fun onChange(selfChange: Boolean) = GuardSetup.ensureAdb(this@RevivalListener)
+    }
+    private fun watchRecoverySignals() {
+        if (watching) return
+        ContextCompat.registerReceiver(this, wakeReceiver, IntentFilter(Intent.ACTION_SCREEN_ON).apply {
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, adbObserver)
+        watching = true
+    }
+    override fun onListenerConnected() {
+        connected = WeakReference(this)
+        Log.i("AerialGuard", "revived by the notification listener binding")
+        watchRecoverySignals()
+        GuardSetup.recover(this)
+        RecentPlayback.refresh(this)
     }
 
-    private fun revive() {
-        GuardSetup.noteRevival(this)
-        // After a crash Android keeps the guard enabled but does not bind it again (TCL MT5879),
-        // and nothing else would notice until Aerial is opened: Home went to the TCL launcher.
-        Handler(Looper.getMainLooper()).postDelayed({ GuardSetup.rebindIfStalled(this) }, 5_000)
+    override fun onListenerDisconnected() {
+        connected = null
+        RecentPlayback.disconnect()
+        super.onListenerDisconnected()
+        if (Build.VERSION.SDK_INT >= 24) runCatching { requestRebind(ComponentName(this, RevivalListener::class.java)) }
     }
 
     override fun onDestroy() {
-        unlocked?.let { runCatching { unregisterReceiver(it) } }
-        unlocked = null
+        if (watching) {
+            runCatching { unregisterReceiver(wakeReceiver) }
+            runCatching { contentResolver.unregisterContentObserver(adbObserver) }
+            watching = false
+        }
+        handler.removeCallbacksAndMessages(null)
+        connected = null
+        RecentPlayback.disconnect()
         super.onDestroy()
+    }
+
+    override fun onNotificationPosted(sbn: StatusBarNotification) {
+        captureMediaEntry(sbn)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun captureMediaEntry(sbn: StatusBarNotification) {
+        if (!RecentPlayback.enabled || !RecentPlayback.accessGranted) return
+        // Only accept an entry tied to a verified, active MediaSession. Never parse normal messages.
+        val token = runCatching {
+            sbn.notification.extras.getParcelable<MediaSession.Token>(Notification.EXTRA_MEDIA_SESSION)
+        }.getOrNull() ?: return
+        val entry = sbn.notification.contentIntent ?: return
+        RecentPlayback.acceptMediaEntry(sbn.packageName, token, entry)
+    }
+
+    override fun dump(fd: java.io.FileDescriptor?, writer: java.io.PrintWriter, args: Array<out String>?) {
+        writer.println(RecentPlayback.diagnostics())
+        writer.println("guardRunning=${HomeGuardService.isRunning} recoveryWatching=$watching keepAdb=${GuardSetup.keepAdb(this)}")
+    }
+
+    companion object {
+        private var connected: WeakReference<RevivalListener>? = null
+        val isConnected: Boolean get() = connected?.get() != null
+
+        fun refreshMediaEntries() {
+            if (!RecentPlayback.enabled || !RecentPlayback.accessGranted) return
+            val service = connected?.get() ?: return
+            runCatching { service.activeNotifications?.forEach(service::captureMediaEntry) }
+        }
     }
 }

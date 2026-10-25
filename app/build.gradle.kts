@@ -16,13 +16,8 @@ android {
         // Android 5.0. Compose 1.10 and later need 6.0, so the Compose BOM below stays on 1.9.
         minSdk = 21
         targetSdk = 34
-        versionCode = 56
-        versionName = "1.48"
-        // `./gradlew -Pdiag ...`: a build for one reporter's TV whose logcat shows no app lines;
-        // see system/DiagLog.kt.
-        val diag = project.hasProperty("diag")
-        buildConfigField("boolean", "DIAG", diag.toString())
-        if (diag) versionNameSuffix = "-diag"
+        versionCode = 26
+        versionName = "1.9-aggregate-search"
     }
 
     // standard: a normal HOME app. guard: no HOME intent filter at all, for China-market firmwares
@@ -72,9 +67,6 @@ android {
         compose = true
         buildConfig = true
     }
-    testOptions {
-        unitTests.isIncludeAndroidResources = true
-    }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}", "DebugProbesKt.bin", "kotlin-tooling-metadata.json")
     }
@@ -86,7 +78,6 @@ kotlin {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.17")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Compose 1.9.5, the last release that runs on Android 5.0 (1.10 raised minSdk to 23).
     val composeBom = platform("androidx.compose:compose-bom:2025.11.01")
@@ -97,10 +88,6 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
     implementation("androidx.core:core-ktx:1.16.0")
-    // Aerial films. 1.8 is the last Media3 that runs on Android 5.0 (1.9 raised minSdk to 23).
-    implementation("androidx.media3:media3-exoplayer:1.8.1")
-    implementation("androidx.media3:media3-datasource:1.8.1")
-    implementation("androidx.media3:media3-database:1.8.1")
     // Phone setup page (a tiny LAN web server) and the QR code that opens it.
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("com.google.zxing:core:3.5.3")

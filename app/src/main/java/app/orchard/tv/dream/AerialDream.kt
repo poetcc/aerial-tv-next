@@ -7,11 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import app.orchard.tv.MainActivity
-import app.orchard.tv.system.DiagLog
-import app.orchard.tv.system.MissingClipboard
-import app.orchard.tv.ui.theme.canvasDensity
-import app.orchard.tv.weather.Weather
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -20,7 +15,6 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import app.orchard.tv.ui.home.LiveFilm
 import app.orchard.tv.ui.home.Screensaver
 import app.orchard.tv.ui.home.ScreensaverSkips
 import app.orchard.tv.ui.home.rememberNow
@@ -40,10 +34,6 @@ class AerialDream : DreamService(), LifecycleOwner, SavedStateRegistryOwner {
     override val lifecycle: Lifecycle get() = registry
     override val savedStateRegistry: SavedStateRegistry get() = savedState.savedStateRegistry
 
-    // See MissingClipboard.
-    override fun getSystemService(name: String): Any? =
-        super.getSystemService(name) ?: if (name == CLIPBOARD_SERVICE) MissingClipboard.standIn else null
-
     override fun onCreate() {
         super.onCreate()
         savedState.performRestore(null)
@@ -56,11 +46,9 @@ class AerialDream : DreamService(), LifecycleOwner, SavedStateRegistryOwner {
         // in dispatchKeyEvent, as a non-interactive dream would.
         isInteractive = true
         isFullscreen = true
-        // Home's wallpaper film holds the decoder the dream's film needs (TCL MT5879).
-        LiveFilm.onHome?.letDecoderGo()
         Wallpapers.init(this)
-        Weather.init(this)
-        val canvas = canvasDensity(resources.displayMetrics)
+        val metrics = resources.displayMetrics
+        val canvas = minOf(metrics.widthPixels, metrics.heightPixels * 16 / 9) / 960f
         setContentView(
             ComposeView(this).apply {
                 setContent {
@@ -78,15 +66,7 @@ class AerialDream : DreamService(), LifecycleOwner, SavedStateRegistryOwner {
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (skips.onKey(event)) return true
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-            MainActivity.dreamWokeAt = event.eventTime
-            MainActivity.dreamWokeKey = event.keyCode
-            DiagLog.i("dream woken by ${KeyEvent.keyCodeToString(event.keyCode)} at ${event.eventTime}")
-            finish()
-        }
-        // The lift, if it comes here while the dream is still up. Not the cancelled one Android sends
-        // as the dream loses focus: the real lift then still goes to Home (TCL MT5879).
-        if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && event.keyCode == MainActivity.dreamWokeKey) MainActivity.dreamWokeKey = -1
+        if (event.action == KeyEvent.ACTION_DOWN) finish()
         return true
     }
 
@@ -96,10 +76,7 @@ class AerialDream : DreamService(), LifecycleOwner, SavedStateRegistryOwner {
     }
 
     override fun onDreamingStopped() {
-        // Since Android 11 the dream lives in an activity: a key press finishes it, the window is
-        // detached first (DESTROYED), and only then is the dream stopped. Moving back to CREATED
-        // from there throws and took Aerial down on every wake (TCL MT5879).
-        if (registry.currentState.isAtLeast(Lifecycle.State.CREATED)) registry.currentState = Lifecycle.State.CREATED
+        registry.currentState = Lifecycle.State.CREATED
         super.onDreamingStopped()
     }
 

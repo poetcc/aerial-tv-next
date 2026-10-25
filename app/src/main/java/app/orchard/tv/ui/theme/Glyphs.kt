@@ -1,175 +1,215 @@
 package app.orchard.tv.ui.theme
 
-import android.graphics.Bitmap
-import android.util.LruCache
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.vector.PathParser
-import androidx.compose.ui.unit.Density
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
-import kotlin.math.roundToInt
+import androidx.compose.ui.unit.dp
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
- * Aerial's glyphs: filled Material Symbols Rounded (GlyphPaths), whose soft, even weight sits
- * closest to SF Symbols among icons an Android app may ship (SF Symbols are licensed for Apple
- * platforms only). Vector paths, rasterized at each UI size, in a square box.
+ * A small set of line glyphs drawn in the spirit of SF Symbols: one stroke weight, round caps,
+ * optically centered in a square box. Drawn, not bundled, so they stay crisp at every size.
  */
-enum class Glyph { Folder, Pencil, Wifi, Ethernet, Offline, Gear, Input, Speaker, SpeakerMuted, Switches, EyeSlash, Move, Info, Trash, ChevronRight, ChevronLeft, Check, Hdmi, Antenna, Av, Sun, Photo, Play, Bag, CloudSun, Calendar, Cast, Shield, Globe, Moon, Cloud, CloudRain, CloudSnow, CloudFog, CloudBolt, Download, Power, Usb, Home, Kids }
+enum class Glyph { Wifi, Ethernet, Offline, Moon, Gear, Input, Speaker, SpeakerMuted, Switches, EyeSlash, Move, Info, Trash, ChevronRight, ChevronLeft, Check, Hdmi, Antenna, Av, Sun, Photo, Play, Search }
 
 @Composable
 fun GlyphIcon(glyph: Glyph, color: Color, size: Dp, modifier: Modifier = Modifier, level: Float = 1f) {
-    val data = glyphPath(glyph, level)
-    Box(modifier.size(size).drawWithCache {
-        val w = this.size.width.roundToInt().coerceAtLeast(1)
-        val h = this.size.height.roundToInt().coerceAtLeast(1)
-        val key = Triple(data, w, h)
-        val image = glyphImages.get(key) ?: glyphImage(data, w, h).also { glyphImages.put(key, it) }
-        onDrawBehind { drawImage(image, colorFilter = ColorFilter.tint(color)) }
-    })
+    Canvas(modifier.size(size)) { drawGlyph(glyph, color, level) }
 }
 
-/** [level] picks the variant of Wi-Fi (signal) and Speaker (volume): 0 to 1. */
-fun DrawScope.drawGlyph(glyph: Glyph, color: Color, level: Float = 1f) = drawGlyph(glyphPath(glyph, level), color)
-
-private fun glyphPath(glyph: Glyph, level: Float): String? {
-    return when (glyph) {
-        Glyph.Wifi -> when {
-            level < 0.34f -> GlyphPaths.WIFI_1
-            level < 0.67f -> GlyphPaths.WIFI_2
-            else -> GlyphPaths.WIFI
-        }
-        Glyph.Ethernet -> GlyphPaths.LAN
-        Glyph.Offline -> GlyphPaths.WIFI_OFF
-        Glyph.Gear -> GlyphPaths.SETTINGS
-        Glyph.Input -> GlyphPaths.INPUT
-        Glyph.Speaker -> when {
-            level <= 0.01f -> GlyphPaths.VOLUME_MUTE
-            level < 0.5f -> GlyphPaths.VOLUME_DOWN
-            else -> GlyphPaths.VOLUME_UP
-        }
-        Glyph.SpeakerMuted -> GlyphPaths.VOLUME_OFF
-        Glyph.Switches -> null
-        Glyph.EyeSlash -> GlyphPaths.VISIBILITY_OFF
-        Glyph.Move -> GlyphPaths.OPEN_WITH
-        Glyph.Folder -> GlyphPaths.FOLDER
-        Glyph.Pencil -> GlyphPaths.EDIT
-        Glyph.Info -> GlyphPaths.INFO
-        Glyph.Trash -> GlyphPaths.DELETE
-        Glyph.ChevronRight -> GlyphPaths.CHEVRON_RIGHT
-        Glyph.ChevronLeft -> GlyphPaths.CHEVRON_LEFT
-        Glyph.Check -> GlyphPaths.CHECK
-        Glyph.Hdmi -> GlyphPaths.HDMI
-        Glyph.Antenna -> GlyphPaths.ANTENNA
-        Glyph.Av -> GlyphPaths.COMPONENT
-        Glyph.Sun -> GlyphPaths.LIGHT_MODE
-        Glyph.Photo -> GlyphPaths.IMAGE
-        Glyph.Play -> GlyphPaths.PLAY_CIRCLE
-        Glyph.Bag -> GlyphPaths.SHOPPING_BAG
-        Glyph.CloudSun -> GlyphPaths.PARTLY_CLOUDY_DAY
-        Glyph.Calendar -> GlyphPaths.CALENDAR_MONTH
-        Glyph.Cast -> GlyphPaths.CAST
-        Glyph.Shield -> GlyphPaths.VERIFIED_USER
-        Glyph.Globe -> GlyphPaths.LANGUAGE
-        Glyph.Moon -> GlyphPaths.BEDTIME
-        Glyph.Cloud -> GlyphPaths.CLOUD
-        Glyph.CloudRain -> GlyphPaths.RAINY
-        Glyph.CloudSnow -> GlyphPaths.WEATHER_SNOWY
-        Glyph.CloudFog -> GlyphPaths.FOGGY
-        Glyph.CloudBolt -> GlyphPaths.THUNDERSTORM
-        Glyph.Download -> GlyphPaths.DOWNLOAD
-        Glyph.Power -> GlyphPaths.POWER
-        Glyph.Usb -> GlyphPaths.USB
-        Glyph.Home -> GlyphPaths.HOME
-        Glyph.Kids -> GlyphPaths.KIDS
-    }
-}
-
-private fun DrawScope.drawGlyph(data: String?, color: Color) {
+fun DrawScope.drawGlyph(glyph: Glyph, color: Color, level: Float = 1f) {
     val s = size.minDimension
-    if (data == null) {
-        drawPath(switches.getOrPut(s) { switchesPath(s) }, color)
-        return
-    }
-    val path = parsed.getOrPut(data) { PathParser().parsePathString(data).toPath() }
-    // The symbols' box runs from y = -960 to 0.
-    scale(s / 960f, pivot = Offset.Zero) {
-        translate(0f, 960f) { drawPath(path, color) }
-    }
-}
+    val w = s * 0.085f
+    val stroke = Stroke(width = w, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    fun p(x: Float, y: Float) = Offset(x * s, y * s)
+    fun line(x1: Float, y1: Float, x2: Float, y2: Float, c: Color = color) =
+        drawLine(c, p(x1, y1), p(x2, y2), strokeWidth = w, cap = StrokeCap.Round)
 
-/**
- * The KKTV U86V9 leaves hardware paths jagged. Rasterize UI glyphs once on the CPU at twice their
- * display size, then downsample. A white mask can be tinted without baking every focus color;
- * bitmap generation for app tiles still draws paths directly.
- */
-private fun glyphImage(data: String?, w: Int, h: Int): ImageBitmap {
-    val large = ImageBitmap(w * 2, h * 2)
-    // Snap Switches' geometry at the final size, before scaling the canvas for antialiasing.
-    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(large), Size(w.toFloat(), h.toFloat())) {
-        scale(2f, pivot = Offset.Zero) { drawGlyph(data, Color.White) }
+    when (glyph) {
+        Glyph.Search -> {
+            drawCircle(color, radius = 0.27f * s, center = p(0.42f, 0.42f), style = stroke)
+            line(0.62f, 0.62f, 0.86f, 0.86f)
+        }
+        Glyph.Wifi -> {
+            val center = p(0.5f, 0.78f)
+            val radii = floatArrayOf(0.2f, 0.38f, 0.56f)
+            radii.forEachIndexed { i, r ->
+                val on = level >= (i + 1) / 3f - 0.01f
+                drawArc(
+                    color = if (on) color else color.copy(alpha = color.alpha * 0.3f),
+                    startAngle = -135f, sweepAngle = 90f, useCenter = false,
+                    topLeft = Offset(center.x - r * s, center.y - r * s), size = Size(2 * r * s, 2 * r * s),
+                    style = stroke,
+                )
+            }
+            drawCircle(color, radius = w * 0.95f, center = center)
+        }
+        Glyph.Ethernet -> {
+            // Three nodes joined by a bus, the usual network glyph.
+            val box = Size(0.26f * s, 0.2f * s)
+            val cr = CornerRadius(0.05f * s)
+            drawRoundRect(color, Offset(0.37f * s, 0.12f * s), box, cr, style = stroke)
+            drawRoundRect(color, Offset(0.1f * s, 0.66f * s), box, cr, style = stroke)
+            drawRoundRect(color, Offset(0.64f * s, 0.66f * s), box, cr, style = stroke)
+            line(0.5f, 0.32f, 0.5f, 0.49f)
+            line(0.23f, 0.49f, 0.77f, 0.49f)
+            line(0.23f, 0.49f, 0.23f, 0.66f)
+            line(0.77f, 0.49f, 0.77f, 0.66f)
+        }
+        Glyph.Offline -> {
+            drawGlyph(Glyph.Wifi, color.copy(alpha = color.alpha * 0.35f), 1f)
+            line(0.18f, 0.16f, 0.82f, 0.86f)
+        }
+        Glyph.Moon -> {
+            val outer = Path().apply { addOval(Rect(p(0.14f, 0.14f), Size(0.72f * s, 0.72f * s))) }
+            val bite = Path().apply { addOval(Rect(p(0.36f, 0.02f), Size(0.66f * s, 0.66f * s))) }
+            drawPath(Path.combine(PathOperation.Difference, outer, bite), color)
+        }
+        Glyph.Gear -> {
+            val c = p(0.5f, 0.5f)
+            val body = Path()
+            val teeth = 8
+            val rOuter = 0.46f * s
+            val rInner = 0.35f * s
+            // Trapezoid teeth around a disc, then a hole through the middle.
+            for (i in 0 until teeth * 2) {
+                val a0 = (i * 180f / teeth - 90f) * (Math.PI / 180).toFloat()
+                val a1 = ((i + 1) * 180f / teeth - 90f) * (Math.PI / 180).toFloat()
+                val r = if (i % 2 == 0) rOuter else rInner
+                val shrink = if (i % 2 == 0) 0.06f else -0.06f
+                val x0 = c.x + r * cos(a0 + shrink); val y0 = c.y + r * sin(a0 + shrink)
+                val x1 = c.x + r * cos(a1 - shrink); val y1 = c.y + r * sin(a1 - shrink)
+                if (i == 0) body.moveTo(x0, y0) else body.lineTo(x0, y0)
+                body.lineTo(x1, y1)
+            }
+            body.close()
+            val hole = Path().apply { addOval(Rect(c, 0.15f * s)) }
+            drawPath(Path.combine(PathOperation.Difference, body, hole), color)
+        }
+        Glyph.Input -> {
+            // A screen with an arrow entering it from the left.
+            drawRoundRect(color, p(0.3f, 0.18f), Size(0.6f * s, 0.5f * s), CornerRadius(0.08f * s), style = stroke)
+            line(0.08f, 0.43f, 0.56f, 0.43f)
+            line(0.44f, 0.31f, 0.56f, 0.43f)
+            line(0.44f, 0.55f, 0.56f, 0.43f)
+            line(0.45f, 0.84f, 0.75f, 0.84f)
+        }
+        Glyph.Speaker, Glyph.SpeakerMuted -> {
+            val body = Path().apply {
+                moveTo(0.1f * s, 0.38f * s); lineTo(0.26f * s, 0.38f * s); lineTo(0.46f * s, 0.2f * s)
+                lineTo(0.46f * s, 0.8f * s); lineTo(0.26f * s, 0.62f * s); lineTo(0.1f * s, 0.62f * s); close()
+            }
+            drawPath(body, color)
+            if (glyph == Glyph.SpeakerMuted) {
+                line(0.62f, 0.38f, 0.86f, 0.62f)
+                line(0.86f, 0.38f, 0.62f, 0.62f)
+            } else {
+                val c = p(0.46f, 0.5f)
+                listOf(0.16f, 0.3f, 0.44f).forEachIndexed { i, r ->
+                    val on = level > i / 3f + 0.01f
+                    drawArc(
+                        color = if (on) color else color.copy(alpha = color.alpha * 0.3f),
+                        startAngle = -45f, sweepAngle = 90f, useCenter = false,
+                        topLeft = Offset(c.x - r * s, c.y - r * s), size = Size(2 * r * s, 2 * r * s), style = stroke,
+                    )
+                }
+            }
+        }
+        Glyph.Switches -> {
+            // Two toggles, the Control Center glyph.
+            val h = 0.3f * s
+            drawRoundRect(color, p(0.06f, 0.14f), Size(0.88f * s, h), CornerRadius(h / 2), style = stroke)
+            drawCircle(color, radius = h * 0.32f, center = p(0.06f + 0.15f, 0.29f))
+            drawRoundRect(color, p(0.06f, 0.56f), Size(0.88f * s, h), CornerRadius(h / 2), style = stroke)
+            drawCircle(color, radius = h * 0.32f, center = p(0.94f - 0.15f, 0.71f))
+        }
+        Glyph.EyeSlash -> {
+            val eye = Path().apply {
+                moveTo(0.06f * s, 0.5f * s)
+                quadraticTo(0.5f * s, 0.04f * s, 0.94f * s, 0.5f * s)
+                quadraticTo(0.5f * s, 0.96f * s, 0.06f * s, 0.5f * s)
+                close()
+            }
+            drawPath(eye, color, style = stroke)
+            drawCircle(color, radius = 0.12f * s, center = p(0.5f, 0.5f))
+            line(0.14f, 0.12f, 0.86f, 0.88f)
+        }
+        Glyph.Move -> {
+            line(0.5f, 0.08f, 0.5f, 0.92f); line(0.08f, 0.5f, 0.92f, 0.5f)
+            line(0.38f, 0.2f, 0.5f, 0.08f); line(0.62f, 0.2f, 0.5f, 0.08f)
+            line(0.38f, 0.8f, 0.5f, 0.92f); line(0.62f, 0.8f, 0.5f, 0.92f)
+            line(0.2f, 0.38f, 0.08f, 0.5f); line(0.2f, 0.62f, 0.08f, 0.5f)
+            line(0.8f, 0.38f, 0.92f, 0.5f); line(0.8f, 0.62f, 0.92f, 0.5f)
+        }
+        Glyph.Info -> {
+            drawCircle(color, radius = 0.42f * s, center = p(0.5f, 0.5f), style = stroke)
+            drawCircle(color, radius = w * 0.85f, center = p(0.5f, 0.3f))
+            line(0.5f, 0.46f, 0.5f, 0.72f)
+        }
+        Glyph.Trash -> {
+            line(0.14f, 0.24f, 0.86f, 0.24f)
+            line(0.38f, 0.24f, 0.4f, 0.1f); line(0.4f, 0.1f, 0.6f, 0.1f); line(0.6f, 0.1f, 0.62f, 0.24f)
+            val body = Path().apply {
+                moveTo(0.22f * s, 0.24f * s); lineTo(0.27f * s, 0.9f * s); lineTo(0.73f * s, 0.9f * s); lineTo(0.78f * s, 0.24f * s)
+            }
+            drawPath(body, color, style = stroke)
+            line(0.43f, 0.4f, 0.44f, 0.74f); line(0.57f, 0.4f, 0.56f, 0.74f)
+        }
+        Glyph.ChevronRight -> { line(0.36f, 0.16f, 0.66f, 0.5f); line(0.66f, 0.5f, 0.36f, 0.84f) }
+        Glyph.ChevronLeft -> { line(0.64f, 0.16f, 0.34f, 0.5f); line(0.34f, 0.5f, 0.64f, 0.84f) }
+        Glyph.Check -> { line(0.16f, 0.52f, 0.4f, 0.76f); line(0.4f, 0.76f, 0.86f, 0.24f) }
+        Glyph.Hdmi -> {
+            // The HDMI port silhouette: a wide plug with chamfered bottom corners.
+            val port = Path().apply {
+                moveTo(0.06f * s, 0.32f * s); lineTo(0.94f * s, 0.32f * s); lineTo(0.94f * s, 0.52f * s)
+                lineTo(0.8f * s, 0.7f * s); lineTo(0.2f * s, 0.7f * s); lineTo(0.06f * s, 0.52f * s); close()
+            }
+            drawPath(port, color, style = stroke)
+            line(0.3f, 0.47f, 0.7f, 0.47f)
+        }
+        Glyph.Antenna -> {
+            drawRoundRect(color, p(0.1f, 0.38f), Size(0.8f * s, 0.5f * s), CornerRadius(0.08f * s), style = stroke)
+            line(0.5f, 0.38f, 0.3f, 0.1f); line(0.5f, 0.38f, 0.72f, 0.12f)
+        }
+        Glyph.Sun -> {
+            drawCircle(color, radius = 0.17f * s, center = p(0.5f, 0.5f))
+            for (i in 0 until 8) {
+                val a = (i * 45f) * (Math.PI / 180).toFloat()
+                line(0.5f + 0.29f * cos(a), 0.5f + 0.29f * sin(a), 0.5f + 0.41f * cos(a), 0.5f + 0.41f * sin(a))
+            }
+        }
+        Glyph.Photo -> {
+            drawRoundRect(color, p(0.08f, 0.16f), Size(0.84f * s, 0.68f * s), CornerRadius(0.1f * s), style = stroke)
+            val hills = Path().apply {
+                moveTo(0.14f * s, 0.76f * s); lineTo(0.38f * s, 0.48f * s); lineTo(0.56f * s, 0.66f * s)
+                lineTo(0.68f * s, 0.54f * s); lineTo(0.86f * s, 0.76f * s); close()
+            }
+            drawPath(hills, color)
+            drawCircle(color, radius = 0.07f * s, center = p(0.7f, 0.34f))
+        }
+        Glyph.Play -> {
+            val tri = Path().apply {
+                moveTo(0.26f * s, 0.14f * s); lineTo(0.86f * s, 0.5f * s); lineTo(0.26f * s, 0.86f * s); close()
+            }
+            drawPath(tri, color)
+        }
+        Glyph.Av -> {
+            drawCircle(color, radius = 0.3f * s, center = p(0.5f, 0.5f), style = stroke)
+            drawCircle(color, radius = 0.09f * s, center = p(0.5f, 0.5f))
+        }
     }
-    val small = Bitmap.createScaledBitmap(large.asAndroidBitmap(), w, h, true)
-    val immutable = small.copy(Bitmap.Config.ARGB_8888, false)
-    small.recycle()
-    large.asAndroidBitmap().recycle()
-    return immutable.asImageBitmap()
-}
-
-private val glyphImages = object : LruCache<Triple<String?, Int, Int>, ImageBitmap>(2 * 1024 * 1024) {
-    override fun sizeOf(key: Triple<String?, Int, Int>, value: ImageBitmap) = value.width * value.height * 4
-}
-
-// Tiles are drawn off the main thread while the UI draws glyphs on it.
-private val parsed = java.util.concurrent.ConcurrentHashMap<String, Path>()
-private val switches = java.util.concurrent.ConcurrentHashMap<Float, Path>()
-
-/**
- * Two toggles, the Control Center glyph, as SF Symbols' switch.2 draws it (Material has no close
- * match): an outlined track with its knob solid on the left over a solid track with its knob cut
- * out on the right. At 17dp it is 34 px on a 1080p UI, so every edge is placed on whole pixels and
- * the tracks keep a clear gap; the earlier strokes fell between pixels and the tracks ran together
- * (Xiaomi MiTV-MFTR0). One path, so a translucent color does not darken where parts overlap.
- */
-private fun switchesPath(s: Float): Path {
-    val line = maxOf(1f, kotlin.math.round(s / 16f))
-    val h = kotlin.math.round(s * 0.36f)
-    val gap = kotlin.math.round(s * 0.12f)
-    val left = kotlin.math.round(s * 0.04f)
-    val right = s - left
-    val top = kotlin.math.round((s - 2 * h - gap) / 2f)
-    val bottom = top + h + gap
-    val r = h / 2f
-    fun pill(l: Float, t: Float, w: Float, ht: Float) = Path().apply {
-        addRoundRect(androidx.compose.ui.geometry.RoundRect(l, t, l + w, t + ht, CornerRadius(ht / 2f)))
-    }
-    fun disc(cx: Float, cy: Float, radius: Float) = Path().apply {
-        addOval(androidx.compose.ui.geometry.Rect(cx - radius, cy - radius, cx + radius, cy + radius))
-    }
-    val outline = Path.combine(
-        PathOperation.Difference,
-        pill(left, top, right - left, h),
-        pill(left + line, top + line, right - left - 2 * line, h - 2 * line),
-    )
-    val upper = Path.combine(PathOperation.Union, outline, disc(left + r, top + r, r))
-    val lower = Path.combine(PathOperation.Difference, pill(left, bottom, right - left, h), disc(right - r, bottom + r, r - line))
-    return Path.combine(PathOperation.Union, upper, lower)
 }

@@ -1,23 +1,19 @@
 #!/usr/bin/env bash
 # One-line installer for people without a checkout: fetches tools/install.sh (and the TCL helper)
-# and runs it with the APK from the latest release. aerial.qust.me serves this file as /install.sh,
-# with copies of the scripts and APKs (tools/deploy-site.sh), since GitHub is slow or blocked in China;
-# GitHub is the fallback.
+# and runs it with the APK from the latest GitHub release.
 #
-#   curl -fsSL https://aerial.qust.me/install.sh | TV=<tv-ip> bash
-#   curl -fsSL .../install.sh | KEEP_ADB=1 TV=<tv-ip> bash      # TVs that switch ADB off (Xiaomi)
-#   curl -fsSL .../install.sh | TV=<tv-ip> bash -s guard        # firmwares that refuse launchers
-#   curl -fsSL .../install.sh | TV=<tv-ip> bash -s repair       # Home opens the TV's launcher again
-#   curl -fsSL .../install.sh | TV=<tv-ip> bash -s restore      # give Home back to the TV's launcher
+#   curl -fsSL https://raw.githubusercontent.com/poetcc/aerial-tv-next/main/tools/get.sh | TV=<tv-ip> bash
+#   curl -fsSL .../get.sh | KEEP_ADB=1 TV=<tv-ip> bash          # TVs that switch ADB off (Xiaomi)
+#   curl -fsSL .../get.sh | TV=<tv-ip> bash -s guard            # firmwares that refuse launchers
+#   curl -fsSL .../get.sh | TV=<tv-ip> bash -s restore          # give Home back to the TV's launcher
 #
 # Needs curl, unzip and python3 (TCL only). If adb is not installed, Google's platform-tools are
 # downloaded into ~/.cache/aerial and used from there.
 set -euo pipefail
 : "${TV:?set TV to the TV IP address, e.g. curl ... | TV=192.168.1.20 bash}"
-REPO=pengchujin/aerial-tv
+REPO="${AERIAL_REPO:-poetcc/aerial-tv-next}"
 REF="${AERIAL_REF:-main}"
 RAW="https://raw.githubusercontent.com/$REPO/$REF"
-SITE=https://aerial.qust.me
 
 if ! command -v adb >/dev/null; then
   case "$(uname -s)" in
@@ -40,9 +36,7 @@ dir=$(mktemp -d)
 trap 'rm -rf "$dir"' EXIT
 mkdir -p "$dir/tools"
 for f in install.sh restore.sh tcast-push.py; do
-  # The site has main's scripts as of the last release; another ref comes from GitHub only.
-  { [ -z "${AERIAL_REF:-}" ] && curl -fsSL --connect-timeout 10 "$SITE/tools/$f" -o "$dir/tools/$f"; } \
-    || curl -fsSL --connect-timeout 10 "$RAW/tools/$f" -o "$dir/tools/$f"
+  curl -fsSL "$RAW/tools/$f" -o "$dir/tools/$f"
 done
 chmod +x "$dir/tools/"*.sh "$dir/tools/tcast-push.py"
 

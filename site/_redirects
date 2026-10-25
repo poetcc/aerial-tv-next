@@ -1,3 +1,5 @@
-/download/standard   /download/aerial-standard.apk 302
-/download/guard      /download/aerial-guard.apk 302
-/github              https://github.com/pengchujin/aerial-tv 302
+# Cloudflare Pages redirects
+/install.sh          https://raw.githubusercontent.com/poetcc/aerial-tv-next/main/tools/get.sh                    302
+/download/standard   https://github.com/poetcc/aerial-tv-next/releases/latest/download/aerial-standard.apk       302
+/download/guard      https://github.com/poetcc/aerial-tv-next/releases/latest/download/aerial-guard.apk          302
+/github              https://github.com/poetcc/aerial-tv-next                                                    302

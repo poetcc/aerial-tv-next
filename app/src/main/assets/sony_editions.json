@@ -1,0 +1,30 @@
+[
+  {
+    "package": "com.gitvvideo.sony",
+    "version": 173909,
+    "certificate": "bf46eae985c1ab0d636833670c3686bc443e49f37d75dec5909adcb587a80ab4",
+    "platform": "iqiyi",
+    "original": "com.gitvdemo.video"
+  },
+  {
+    "package": "com.ktcp.tvvideo",
+    "version": 1272904,
+    "certificate": "42bb7203cd3f7ecc02f265e53221c97227f75048645f80f0815ea59d2ca9d44d",
+    "platform": "tencent",
+    "original": "com.ktcp.video"
+  },
+  {
+    "package": "com.cibn.tv.sony",
+    "version": 2131300108,
+    "certificate": "c7dfd19f8199b80615ea6e70ab46f85d87f36af26501f4e02d5c2cba85e802fb",
+    "platform": "youku",
+    "original": "com.cibn.tv"
+  },
+  {
+    "package": "com.hunantv.market",
+    "version": 26022408,
+    "certificate": "fb568de20b43387b41a7f1ea15cfe67adf27785d280ea9623405d61ae7cac476",
+    "platform": "mango",
+    "original": "com.hunantv.license"
+  }
+]

@@ -17,9 +17,6 @@ adb shell am broadcast -a "$PKG.CONFIG" -n "$PKG/.guard.ConfigReceiver" --ez kee
 adb shell cmd notification disallow_listener "$PKG/$PKG.guard.RevivalListener" >/dev/null 2>&1 || true
 adb shell pm revoke "$PKG" android.permission.WRITE_SECURE_SETTINGS >/dev/null 2>&1 || true
 adb shell appops set "$PKG" SYSTEM_ALERT_WINDOW default >/dev/null 2>&1 || true
-adb shell appops set "$PKG" REQUEST_INSTALL_PACKAGES default >/dev/null 2>&1 || true
-adb shell appops set "$PKG" GET_USAGE_STATS default >/dev/null 2>&1 || true
-adb shell appops set "$PKG" android:get_usage_stats default >/dev/null 2>&1 || true
 adb shell appops set "$PKG" APP_AUTO_START default >/dev/null 2>&1 || true   # TCL only
 adb shell appops set "$PKG" APP_ASSOC_START default >/dev/null 2>&1 || true
 adb shell am force-stop "$PKG"
@@ -33,17 +30,6 @@ if [ -z "$REST" ] || [ "$REST" = null ]; then
   adb shell settings delete secure enabled_accessibility_services >/dev/null
 else
   adb shell settings put secure enabled_accessibility_services "'$REST'"
-fi
-# Hisense VIDAA: put back the launcher install.sh replaced in persist.vt.use_home_pkg.
-VT_HOME=$(adb shell settings get global aerial_vt_home_pkg | tr -d '\r')
-if [ -n "$VT_HOME" ] && [ "$VT_HOME" != null ]; then
-  adb shell setprop persist.vt.use_home_pkg "$VT_HOME"
-  adb shell settings delete global aerial_vt_home_pkg >/dev/null
-elif [ "$(adb shell getprop persist.vt.use_home_pkg | tr -d '\r')" = "$PKG" ] &&
-     adb shell pm path com.jamdeo.tv.vod 2>/dev/null | grep -q package:; then
-  # Set by hand before install.sh kept the old value (1.15 and earlier, issue #40): VIDAA's
-  # launcher is 聚好看 on every VIDAA build reported so far.
-  adb shell setprop persist.vt.use_home_pkg com.jamdeo.tv.vod
 fi
 adb shell cmd role remove-role-holder --user 0 android.app.role.HOME "$PKG" >/dev/null 2>&1 || true
 

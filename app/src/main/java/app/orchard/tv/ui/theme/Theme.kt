@@ -14,14 +14,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.orchard.tv.R
 
-/**
- * Pixels per dp of Aerial's 960×540 design canvas on this screen: 2 for a 1080p UI, 4 for a TV
- * that draws its UI at 4K. Anything rasterized ahead of time (tile art, wallpapers) is sized from
- * this too, so it stays as sharp as the text drawn live.
- */
-fun canvasDensity(metrics: android.util.DisplayMetrics): Float =
-    minOf(metrics.widthPixels, metrics.heightPixels * 16 / 9) / 960f
-
 /** tvOS dark appearance. Values follow Apple's system colors for the dark, elevated context. */
 object Palette {
     val Background = Color(0xFF000000)
@@ -78,17 +70,8 @@ val InterDisplay = inter(32f)
 
 object Type {
     val Clock = TextStyle(
-        fontFamily = InterDisplay, fontWeight = FontWeight.W500,
-        fontSize = 104.sp, lineHeight = 104.sp, letterSpacing = (-0.02).em, color = Palette.Label,
-    )
-    /**
-     * The smaller clocks (Home's small clock, Control Center, the screensaver). Display cuts and
-     * negative tracking made their digits run together at these sizes (#494), so they take the
-     * text cut and open tracking. Size is set where used.
-     */
-    val SmallClock = TextStyle(
-        fontFamily = InterText, fontWeight = FontWeight.W600,
-        letterSpacing = 0.05.em, color = Palette.Label,
+        fontFamily = InterDisplay, fontWeight = FontWeight.W200,
+        fontSize = 112.sp, lineHeight = 112.sp, letterSpacing = (-0.035).em, color = Palette.Label,
     )
     val LargeTitle = TextStyle(
         fontFamily = InterDisplay, fontWeight = FontWeight.W600,

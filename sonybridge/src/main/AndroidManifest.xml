@@ -1,0 +1,38 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <permission android:name="app.orchard.tv.permission.PLAYBACK_BRIDGE" android:protectionLevel="signature" />
+    <uses-permission android:name="app.orchard.tv.permission.PLAYBACK_BRIDGE" />
+    <queries><package android:name="app.orchard.tv" /></queries>
+    <application android:banner="@drawable/banner" android:icon="@drawable/banner" android:label="@string/app_name" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
+        <activity android:name=".ProbeActivity" android:exported="true">
+            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LEANBACK_LAUNCHER" /></intent-filter>
+        </activity>
+        <service android:name=".ProbeService" android:exported="true" android:permission="app.orchard.tv.permission.PLAYBACK_BRIDGE" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Local playback-history compatibility probe for the user-selected TV launcher" />
+        </service>
+        <receiver android:name=".RecoveryReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <provider android:name=".RecordProvider" android:authorities="app.orchard.sonybridge.records" android:exported="true" android:readPermission="app.orchard.tv.permission.PLAYBACK_BRIDGE" android:writePermission="android.permission.DUMP" />
+        <receiver android:name=".PlaybackReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="com.gitvvideo.sony.action.ACTION_ADD_PLAYRECORD" />
+                <action android:name="com.gitvdemo.video.action.ACTION_ADD_PLAYRECORD" />
+                <action android:name="com.tv.history.add" />
+                <action android:name="com.tv.history.secure.add" />
+                <action android:name="com.tv.ali.history.add" />
+                <action android:name="com.dangbei.history.add" />
+                <action android:name="com.dangbei.humminglauncher.sdk.mango.history.ADD" />
+
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

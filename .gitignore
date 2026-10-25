@@ -9,10 +9,16 @@ local.properties
 local/
 .DS_Store
 
-# Copied into the website by tools/deploy-site.sh: the latest release's APKs and the install scripts.
-site/download/
-site/tools/
-site/install.sh
-
-# Wrangler state and the account cache (account id, e-mail).
+# Private research, firmware, third-party packages and local cloud state.
+research/
 .wrangler/
+*.apk
+*.aab
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+signing.properties
+.env
+.env.*
